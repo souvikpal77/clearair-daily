@@ -1,0 +1,6 @@
+{
+  "name": "ClearAir Daily",
+  "description": "An urban air-quality decision assistant helping families navigate winter smog with personalized daily plans, indoor air guidance, low-emission alternatives, and transparent impact explanations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
