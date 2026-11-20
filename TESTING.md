@@ -4,13 +4,18 @@ ClearAir Daily uses **Vitest** (`jsdom` environment) and **React Testing Library
 
 ---
 
-## 1. Automated Test Suites
+## 1. Automated Verification & Test Suites
 
-Run the full test suite:
+Run all quality checks (matching `.github/workflows/ci.yml`):
 
 ```bash
+npm run typecheck
+npm run lint
 npm test
+npm run build
 ```
+
+Verified suite baseline: **10 test files, 67 passing tests**.
 
 ### Unit Tests (`src/core/__tests__/`)
 - **`aqCategorizer.test.ts`**: Verifies US EPA AQI boundary classifications (`0–50`, `51–100`, `101–150`, `151–200`, `201–300`, `301+`), null/negative safety handling, dominant pollutant logic, and honest non-live scenario labeling.

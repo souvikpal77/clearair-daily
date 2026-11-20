@@ -73,8 +73,10 @@ NODE_ENV=production npm start
 
 ## Testing & Verification
 
+Automated checks run via **Vitest**, **ESLint**, **TypeScript**, and **Vite** (configured in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)):
+
 ```bash
-# Run unit, integration, and UI tests
+# Run unit, integration, and UI tests (Vitest + React Testing Library)
 npm test
 
 # TypeScript typecheck
@@ -139,3 +141,9 @@ gcloud run services update clearair-daily \
 - **No Fabricated Live Data**: When Open-Meteo live telemetry is unreachable or a city cannot be resolved, the interface switches explicitly to an **Estimated Planning Scenario** labeled `Not Live Sensor Data`.
 - **Transparent Estimates**: Commute emission savings use bounded per-kilometer ranges (`0.16–0.22 kg CO2e/km` solo passenger vehicle vs `0.04–0.08 kg CO2e/km` shared transit) and display assumptions alongside every figure.
 - **Privacy Minimization**: No names, street addresses, account credentials, or personal health records are collected. Household preferences and the daily checklist remain in browser `localStorage`.
+
+---
+
+## License
+
+This project is licensed under the **MIT License**. See [LICENSE](./LICENSE) for full terms.
