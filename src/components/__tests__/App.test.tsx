@@ -156,4 +156,67 @@ describe('ClearAir Daily UI flows', () => {
     expect(await screen.findByText(/Assistant temporarily offline/i)).toBeInTheDocument();
     expect(input).toHaveValue('Should I open bedroom windows?');
   });
+
+  it('recovers safely from malformed or XSS-tainted localStorage state and escapes HTML-like assistant output', async () => {
+    window.localStorage.setItem('clearair_daily_profile_v1', '{broken-json');
+    window.localStorage.setItem(
+      'clearair_daily_checklist_v1',
+      JSON.stringify({
+        date: new Date().toISOString().slice(0, 10),
+        ids: Array.from({ length: 30 }, (_, i) => `item-${i}`),
+      })
+    );
+
+    const aq = buildEstimatedScenarioContext('Delhi', 'moderate_winter_haze');
+    const plan = buildDeterministicPlan(DEFAULT_USER_PROFILE, aq);
+    const checklist = buildActionChecklist(DEFAULT_USER_PROFILE, aq);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/air-quality')) {
+          return new Response(JSON.stringify(aq), { status: 200 });
+        }
+        if (url.includes('/api/plan/generate')) {
+          return new Response(
+            JSON.stringify({
+              plan,
+              checklist,
+              generationMode: 'deterministic_fallback',
+              fallbackNotice: null,
+              generatedAt: '2026-11-18T12:00:00.000Z',
+              disclaimer: RESPONSIBLE_AI_DISCLAIMER,
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            reply: 'Safe guidance <img src=x onerror=alert(1)> for Delhi.',
+            mode: 'deterministic_fallback',
+            groundedContextSummary: 'Delhi · US AQI 128',
+            disclaimer: RESPONSIBLE_AI_DISCLAIMER,
+          }),
+          { status: 200 }
+        );
+      })
+    );
+
+    render(<App />);
+
+    expect(
+      screen.getByRole('heading', { name: /Let’s plan a cleaner day in Delhi\./i })
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/0 of 6 completed/i)).toBeInTheDocument();
+    });
+
+    const input = screen.getByLabelText(/Ask a question about air quality/i);
+    fireEvent.change(input, { target: { value: 'Is indoor air safe?' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ask Assistant/i }));
+
+    expect(await screen.findByText(/Safe guidance <img src=x onerror=alert\(1\)> for Delhi\./i)).toBeInTheDocument();
+    expect(document.querySelector('img[onerror]')).toBeNull();
+  });
 });

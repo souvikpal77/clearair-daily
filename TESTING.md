@@ -24,9 +24,9 @@ npm test
 
 ### Integration Tests (`src/server/__tests__/`)
 - **`api.integration.test.ts`**:
-  - Mocks `fetch` to test live Open-Meteo geocoding + AQ mapping, in-flight request deduplication, 5-min TTL caching, `forceRefresh` bypass, network/timeout/malformed failure fallbacks.
-  - Mocks `GeminiClientAdapter` to test valid structured plan & chat JSON output, timeout fallback, malformed/incomplete JSON fallback, `429 RESOURCE_EXHAUSTED` fallback, and missing-AQI guardrail enforcement.
-  - Spins up an ephemeral HTTP server with `createApiApp` to verify `400 Bad Request` validation and `200 OK` responses across `/api/air-quality`, `/api/plan/generate`, and `/api/assistant/chat`.
+  - Mocks `fetch` to test live Open-Meteo geocoding + AQ mapping, in-flight request deduplication (including concurrent `forceRefresh` coalescing), 5-min TTL caching, `forceRefresh` cache bypass, and network/timeout/malformed failure fallbacks.
+  - Mocks `GeminiClientAdapter` to test valid structured plan & chat JSON output, timeout fallback, malformed/incomplete JSON fallback, `429 RESOURCE_EXHAUSTED` fallback, `UPSTREAM_5XX` (`500 INTERNAL` / `503 UNAVAILABLE`) retry and fallback, missing-AQI/medical guardrails, delimiter-breakout prompt isolation, and secret/path non-leakage.
+  - Spins up an ephemeral HTTP server with `createApiApp` to verify `400 Bad Request` strict query/body validation, `403` cross-origin blocking, `429` fixed-window rate limiting, security headers, and `200 OK` responses across `/api/air-quality`, `/api/plan/generate`, and `/api/assistant/chat`.
 
 ### UI Component & Accessibility Tests (`src/components/__tests__/`)
 - **`App.test.tsx`**:
@@ -34,7 +34,7 @@ npm test
   - Verifies inline city validation errors (`role="alert"`).
   - Verifies interactive daily action checklist toggling and progress updates.
   - Verifies `ProfileModal` `role="dialog"` open, Escape-key close, and household update persistence.
-  - Verifies quick assistant prompt submission and question-input preservation when the API returns an error.
+  - Verifies quick assistant prompt submission, question-input preservation on request failure, malformed/XSS-tainted `localStorage` recovery, and HTML escaping of assistant output.
 
 ---
 

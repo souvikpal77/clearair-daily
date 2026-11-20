@@ -137,7 +137,7 @@ export function DailyPlanSection({
       </div>
 
       {/* Connected Chronological Timeline */}
-      <div className="mt-6">
+      <div className="mt-6" aria-busy={isGenerating}>
         <h3 className="text-sm font-bold text-slate-900">Day-by-Window Timeline</h3>
         <ol className="relative mt-4 space-y-4 before:absolute before:bottom-4 before:left-5 before:top-4 before:w-px before:bg-slate-200">
           {plan.dailyPlan.map((slot, index) => {
@@ -203,7 +203,7 @@ export function DailyPlanSection({
               <li key={item.id}>
                 <label
                   htmlFor={checkboxId}
-                  className={`flex min-h-[52px] cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors ${
+                  className={`flex min-h-[52px] cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors focus-within:ring-2 focus-within:ring-teal-700 focus-within:ring-offset-1 ${
                     isChecked
                       ? 'border-teal-300 bg-teal-50/55'
                       : 'border-slate-200 bg-white hover:border-teal-300/70 hover:bg-slate-50/70'

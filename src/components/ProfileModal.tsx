@@ -51,7 +51,10 @@ function ProfileModalDialog({
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => firstInputRef.current?.focus(), 20);
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    firstInputRef.current?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -59,8 +62,10 @@ function ProfileModalDialog({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused && previouslyFocused.isConnected) {
+        previouslyFocused.focus();
+      }
     };
   }, [onClose]);
 
@@ -156,6 +161,10 @@ function ProfileModalDialog({
                 onChange={(e) =>
                   setDraft({ ...draft, householdSize: Math.max(1, Number(e.target.value) || 1) })
                 }
+                aria-invalid={Boolean(
+                  formError && (draft.householdSize < 1 || draft.householdSize > 15)
+                )}
+                aria-describedby={formError ? 'profile-form-error' : undefined}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-900 font-mono-tabular focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               />
             </div>
@@ -206,6 +215,10 @@ function ProfileModalDialog({
                     commuteDistanceKm: Math.max(0, Number(e.target.value) || 0),
                   })
                 }
+                aria-invalid={Boolean(
+                  formError && (draft.commuteDistanceKm < 0 || draft.commuteDistanceKm > 150)
+                )}
+                aria-describedby={formError ? 'profile-form-error' : undefined}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 px-3 text-sm text-slate-900 font-mono-tabular focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               />
             </div>

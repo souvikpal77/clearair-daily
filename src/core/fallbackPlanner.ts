@@ -11,10 +11,10 @@ import {
 export { buildActionChecklist, buildDeterministicPlan };
 
 const MEDICAL_SCOPE_REGEX =
-  /\b(diagnos|asthma attack|inhaler|medication|steroid|prescrib|chest pain|shortness of breath|wheezing|cure|treat|disease|antibiotic|symptom)\b/i;
+  /\b(diagnos\w*|asthma attack|inhaler|medication|steroid|prescrib\w*|prescription|chest pain|shortness of breath|wheezing|cure|treat\w*|disease|antibiotic|symptom\w*|medical advice|clinical)\b/i;
 
 const AQI_QUERY_REGEX =
-  /\b(what is my aqi|current aqi|air quality index|aqi value|live aqi|what's the aqi|how is the aqi)\b/i;
+  /\b(what is my aqi|tell me my aqi|current aqi|air quality index|aqi value|live aqi|what's the aqi|how is the aqi|aqi is \d+|pm2\.5|pm10|air quality reading|pollution level)\b/i;
 
 export function isMedicalScopeQuestion(question: string): boolean {
   return MEDICAL_SCOPE_REGEX.test(question);

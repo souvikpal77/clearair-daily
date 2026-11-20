@@ -2,15 +2,24 @@ import { z } from 'zod';
 
 const sanitizePlainText = (value: string): string =>
   value
-    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/[\u0000-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+const UNSAFE_HTML_MARKUP_REGEX =
+  /<\s*\/?\s*(script|iframe|object|embed|style|svg|img|link|meta|base|form)\b|javascript\s*:|data\s*:\s*text\/html|on[a-z]+\s*=/i;
 
 export const SafeShortTextSchema = (minLen: number, maxLen: number) =>
   z
     .string()
     .transform(sanitizePlainText)
     .pipe(z.string().min(minLen).max(maxLen));
+
+export const SafeAiTextSchema = (minLen: number, maxLen: number) =>
+  SafeShortTextSchema(minLen, maxLen).refine(
+    (value) => !UNSAFE_HTML_MARKUP_REGEX.test(value),
+    'Unsafe markup is not permitted in generated output'
+  );
 
 export const CommuteModeSchema = z.enum([
   'car_solo',
@@ -71,10 +80,17 @@ export const UserProfileSchema = z.object({
   sensitivityGroup: SensitivityGroupSchema,
 });
 
-export const AirQualityQuerySchema = z.object({
-  city: SafeShortTextSchema(2, 80),
-  scenario: PlanningScenarioIdSchema.optional().default('live'),
-  refresh: z.enum(['true', 'false']).optional().default('false'),
+export const AirQualityQuerySchema = z
+  .object({
+    city: SafeShortTextSchema(2, 80),
+    scenario: PlanningScenarioIdSchema.optional().default('live'),
+    refresh: z.enum(['true', 'false']).optional().default('false'),
+  })
+  .strict();
+
+export const ChecklistStorageSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  ids: z.array(SafeShortTextSchema(1, 64)).max(20),
 });
 
 export const AqCategoryInfoSchema = z.object({
@@ -117,82 +133,86 @@ export const AirQualityContextSchema = z.object({
 });
 
 export const PlanTimeSlotSchema = z.object({
-  id: SafeShortTextSchema(1, 40),
-  windowLabel: SafeShortTextSchema(2, 40),
-  title: SafeShortTextSchema(3, 100),
-  guidance: SafeShortTextSchema(8, 360),
+  id: SafeAiTextSchema(1, 40),
+  windowLabel: SafeAiTextSchema(2, 40),
+  title: SafeAiTextSchema(3, 100),
+  guidance: SafeAiTextSchema(8, 360),
   priority: z.enum(['high', 'moderate', 'low']),
-  avoidOrReduce: SafeShortTextSchema(3, 220).optional(),
+  avoidOrReduce: SafeAiTextSchema(3, 220).optional(),
   context: z.enum(['indoor', 'outdoor', 'commute', 'mixed']).optional(),
-  reason: SafeShortTextSchema(5, 240).optional(),
+  reason: SafeAiTextSchema(5, 240).optional(),
 });
 
 export const ImpactChainSchema = z.object({
-  id: SafeShortTextSchema(1, 40),
-  title: SafeShortTextSchema(3, 100),
-  action: SafeShortTextSchema(5, 180),
-  mechanism: SafeShortTextSchema(5, 180),
-  directImpact: SafeShortTextSchema(5, 220),
-  estimatedRangeLabel: SafeShortTextSchema(3, 140),
-  assumptions: SafeShortTextSchema(5, 260),
-  limitations: SafeShortTextSchema(5, 260).optional(),
+  id: SafeAiTextSchema(1, 40),
+  title: SafeAiTextSchema(3, 100),
+  action: SafeAiTextSchema(5, 180),
+  mechanism: SafeAiTextSchema(5, 180),
+  directImpact: SafeAiTextSchema(5, 220),
+  estimatedRangeLabel: SafeAiTextSchema(3, 140),
+  assumptions: SafeAiTextSchema(5, 260),
+  limitations: SafeAiTextSchema(5, 260).optional(),
   category: z.enum(['mobility', 'indoor', 'exposure', 'energy']),
 });
 
 export const IndoorGuidanceItemSchema = z.object({
-  id: SafeShortTextSchema(1, 40),
+  id: SafeAiTextSchema(1, 40),
   area: z.enum(['Ventilation', 'Cooking', 'Filtration', 'Combustion', 'Living Space']),
-  title: SafeShortTextSchema(3, 100),
-  guidance: SafeShortTextSchema(8, 340),
+  title: SafeAiTextSchema(3, 100),
+  guidance: SafeAiTextSchema(8, 340),
   sourceType: z.enum(['evidence_based', 'ai_personalized']),
-  rationale: SafeShortTextSchema(5, 260),
-  limitations: SafeShortTextSchema(5, 240).optional(),
+  rationale: SafeAiTextSchema(5, 260),
+  limitations: SafeAiTextSchema(5, 240).optional(),
 });
 
 export const AlternativeComparisonSchema = z.object({
-  id: SafeShortTextSchema(1, 40),
-  domain: SafeShortTextSchema(2, 60),
-  currentChoice: SafeShortTextSchema(3, 140),
-  alternativeChoice: SafeShortTextSchema(3, 160),
+  id: SafeAiTextSchema(1, 40),
+  domain: SafeAiTextSchema(2, 60),
+  currentChoice: SafeAiTextSchema(3, 140),
+  alternativeChoice: SafeAiTextSchema(3, 160),
   practicality: z.enum(['High', 'Moderate', 'Situational']),
-  environmentalReasoning: SafeShortTextSchema(5, 260),
-  estimatedImpact: SafeShortTextSchema(4, 180),
-  assumptions: SafeShortTextSchema(4, 240),
-  tradeOffs: SafeShortTextSchema(4, 240),
-  whenNotSuitable: SafeShortTextSchema(4, 240),
+  environmentalReasoning: SafeAiTextSchema(5, 260),
+  estimatedImpact: SafeAiTextSchema(4, 180),
+  assumptions: SafeAiTextSchema(4, 240),
+  tradeOffs: SafeAiTextSchema(4, 240),
+  whenNotSuitable: SafeAiTextSchema(4, 240),
 });
 
 export const AiPlanPayloadSchema = z.object({
-  summary: SafeShortTextSchema(10, 420),
-  priorities: z.array(SafeShortTextSchema(5, 180)).min(2).max(6),
+  summary: SafeAiTextSchema(10, 420),
+  priorities: z.array(SafeAiTextSchema(5, 180)).min(2).max(6),
   dailyPlan: z.array(PlanTimeSlotSchema).min(4).max(7),
   indoorActions: z.array(IndoorGuidanceItemSchema).min(3).max(7),
   lowEmissionAlternatives: z.array(AlternativeComparisonSchema).min(2).max(5),
   impactExplanations: z.array(ImpactChainSchema).min(2).max(5),
-  cautions: z.array(SafeShortTextSchema(5, 240)).min(1).max(5),
+  cautions: z.array(SafeAiTextSchema(5, 240)).min(1).max(5),
 });
 
 export const StructuredAssistantReplySchema = z.object({
-  answer: SafeShortTextSchema(10, 900),
-  recommendations: z.array(SafeShortTextSchema(5, 220)).max(5),
-  impactExplanation: SafeShortTextSchema(8, 340),
-  cautions: z.array(SafeShortTextSchema(5, 240)).min(1).max(4),
+  answer: SafeAiTextSchema(10, 900),
+  recommendations: z.array(SafeAiTextSchema(5, 220)).max(5),
+  impactExplanation: SafeAiTextSchema(8, 340),
+  cautions: z.array(SafeAiTextSchema(5, 240)).min(1).max(4),
 });
 
-export const GeneratePlanRequestSchema = z.object({
-  profile: UserProfileSchema,
-  airQuality: AirQualityContextSchema,
-});
+export const GeneratePlanRequestSchema = z
+  .object({
+    profile: UserProfileSchema,
+    airQuality: AirQualityContextSchema,
+  })
+  .strict();
 
 export const AssistantChatTurnSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: SafeShortTextSchema(1, 1200),
 });
 
-export const AssistantChatRequestSchema = z.object({
-  question: SafeShortTextSchema(2, 600),
-  history: z.array(AssistantChatTurnSchema).max(10).optional().default([]),
-  profile: UserProfileSchema,
-  airQuality: AirQualityContextSchema,
-  planSummary: SafeShortTextSchema(5, 500).optional(),
-});
+export const AssistantChatRequestSchema = z
+  .object({
+    question: SafeShortTextSchema(2, 600),
+    history: z.array(AssistantChatTurnSchema).max(10).optional().default([]),
+    profile: UserProfileSchema,
+    airQuality: AirQualityContextSchema,
+    planSummary: SafeShortTextSchema(5, 500).optional(),
+  })
+  .strict();

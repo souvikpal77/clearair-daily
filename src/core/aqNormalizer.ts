@@ -164,8 +164,8 @@ export function normalizeOpenMeteoAqPayload(params: {
   return {
     cityResolved: match.name,
     countryOrRegion: regionParts.join(', ') || 'Resolved Location',
-    latitude: Math.round(match.latitude * 1000) / 1000,
-    longitude: Math.round(match.longitude * 1000) / 1000,
+    latitude: null,
+    longitude: null,
     aqi: aqiValue,
     category: categorizeUsAqi(aqiValue),
     ...(trimmedExtCategory

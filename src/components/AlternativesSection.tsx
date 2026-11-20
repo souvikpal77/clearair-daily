@@ -157,7 +157,7 @@ export function AlternativesSection({ alternatives, profile }: AlternativesSecti
               value={householdsCount}
               onChange={(e) => setHouseholdsCount(Number(e.target.value))}
               aria-valuetext={`${householdsCount} participating households`}
-              className="mt-3 w-full accent-teal-700 cursor-pointer"
+              className="mt-3 w-full cursor-pointer rounded accent-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2"
             />
             <div className="mt-1.5 flex justify-between text-xs text-slate-500 font-mono-tabular">
               <span>10</span>

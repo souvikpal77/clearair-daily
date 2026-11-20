@@ -1,18 +1,26 @@
 import 'dotenv/config';
 import express from 'express';
 import fs from 'fs';
+import http from 'node:http';
 import path from 'path';
 import { createApiApp } from './src/server/createApp.ts';
 
 async function startServer() {
   const app = createApiApp();
+  app.set('trust proxy', 1);
+  const httpServer = http.createServer(app);
   const port = Number(process.env.PORT) || 3000;
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: {
+          server: httpServer,
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -29,7 +37,7 @@ async function startServer() {
     });
   }
 
-  app.listen(port, '0.0.0.0', () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`ClearAir Daily server listening on port ${port}`);
   });
 }

@@ -10,7 +10,11 @@ import {
   DEFAULT_USER_PROFILE,
   RESPONSIBLE_AI_DISCLAIMER,
 } from '../shared/constants.ts';
-import { UserProfileSchema } from '../shared/schemas.ts';
+import {
+  ChecklistStorageSchema,
+  SafeShortTextSchema,
+  UserProfileSchema,
+} from '../shared/schemas.ts';
 import type {
   AirQualityContext,
   GeneratedAirPlanResponse,
@@ -47,30 +51,25 @@ function loadStoredCheckedIds(): string[] {
   try {
     const raw = window.localStorage.getItem(CHECKLIST_STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as { date?: string; ids?: unknown };
-    if (parsed.date !== getTodayDateKey() || !Array.isArray(parsed.ids)) {
+    const parsed = ChecklistStorageSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success || parsed.data.date !== getTodayDateKey()) {
       return [];
     }
-    return parsed.ids.filter((id): id is string => typeof id === 'string');
+    return parsed.data.ids;
   } catch {
     return [];
   }
 }
 
 export function useAirQualityPlanner() {
-  const [profile, setProfile] = useState<UserProfile>(loadStoredProfile);
-  const [scenarioId, setScenarioId] = useState<PlanningScenarioId>('live');
-  const [airQuality, setAirQuality] = useState<AirQualityContext>(() =>
-    buildEstimatedScenarioContext(
-      loadStoredProfile().city,
+  const [initialBootstrap] = useState(() => {
+    const initialProfile = loadStoredProfile();
+    const initialAq = buildEstimatedScenarioContext(
+      initialProfile.city,
       'moderate_winter_haze',
       'Loading live conditions… Showing an estimated baseline until telemetry resolves.'
-    )
-  );
-  const [planResponse, setPlanResponse] = useState<GeneratedAirPlanResponse>(() => {
-    const initialProfile = loadStoredProfile();
-    const initialAq = buildEstimatedScenarioContext(initialProfile.city, 'moderate_winter_haze');
-    return {
+    );
+    const initialPlan: GeneratedAirPlanResponse = {
       plan: buildDeterministicPlan(initialProfile, initialAq),
       recommendations: buildDeterministicRecommendations(initialProfile, initialAq),
       checklist: buildActionChecklist(initialProfile, initialAq),
@@ -79,7 +78,15 @@ export function useAirQualityPlanner() {
       generatedAt: new Date().toISOString(),
       disclaimer: RESPONSIBLE_AI_DISCLAIMER,
     };
+    return { initialProfile, initialAq, initialPlan };
   });
+
+  const [profile, setProfile] = useState<UserProfile>(initialBootstrap.initialProfile);
+  const [scenarioId, setScenarioId] = useState<PlanningScenarioId>('live');
+  const [airQuality, setAirQuality] = useState<AirQualityContext>(initialBootstrap.initialAq);
+  const [planResponse, setPlanResponse] = useState<GeneratedAirPlanResponse>(
+    initialBootstrap.initialPlan
+  );
 
   const [isLoadingAq, setIsLoadingAq] = useState<boolean>(true);
   const [aqError, setAqError] = useState<string | null>(null);
@@ -230,7 +237,9 @@ export function useAirQualityPlanner() {
 
   const updateCityQuick = useCallback(
     (city: string) => {
-      const updated = { ...profile, city: city.trim() };
+      const parsedCity = SafeShortTextSchema(2, 80).safeParse(city);
+      if (!parsedCity.success) return;
+      const updated = { ...profile, city: parsedCity.data };
       setProfile(updated);
       setScenarioId('live');
       try {
