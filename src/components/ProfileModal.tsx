@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
+import type { z } from 'zod';
 import {
   CommuteModeSchema,
   CookingFuelSchema,
@@ -68,6 +69,17 @@ function ProfileModalDialog({
       }
     };
   }, [onClose]);
+
+  const updateEnumField = <K extends keyof UserProfile>(
+    field: K,
+    schema: z.ZodType<UserProfile[K]>,
+    rawValue: string
+  ) => {
+    const parsed = schema.safeParse(rawValue);
+    if (parsed.success) {
+      setDraft((prev) => ({ ...prev, [field]: parsed.data }));
+    }
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -179,12 +191,7 @@ function ProfileModalDialog({
               <select
                 id="profile-commute-mode"
                 value={draft.commuteMode}
-                onChange={(e) => {
-                  const parsed = CommuteModeSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, commuteMode: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('commuteMode', CommuteModeSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="car_solo">Solo car</option>
@@ -233,12 +240,7 @@ function ProfileModalDialog({
               <select
                 id="profile-work-schedule"
                 value={draft.workSchedule}
-                onChange={(e) => {
-                  const parsed = WorkScheduleSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, workSchedule: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('workSchedule', WorkScheduleSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="standard_9_to_5">Standard daytime (09:00–17:30)</option>
@@ -258,12 +260,7 @@ function ProfileModalDialog({
               <select
                 id="profile-outdoor-habit"
                 value={draft.outdoorHabit}
-                onChange={(e) => {
-                  const parsed = OutdoorHabitSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, outdoorHabit: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('outdoorHabit', OutdoorHabitSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="daily_exercise">Daily outdoor exercise / run</option>
@@ -282,12 +279,7 @@ function ProfileModalDialog({
               <select
                 id="profile-cooking-fuel"
                 value={draft.cookingFuel}
-                onChange={(e) => {
-                  const parsed = CookingFuelSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, cookingFuel: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('cookingFuel', CookingFuelSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="gas_stove">Gas stove / range</option>
@@ -306,12 +298,7 @@ function ProfileModalDialog({
               <select
                 id="profile-ventilation"
                 value={draft.ventilationType}
-                onChange={(e) => {
-                  const parsed = VentilationTypeSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, ventilationType: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('ventilationType', VentilationTypeSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="exhaust_hood">Kitchen/bath exhaust fan + windows</option>
@@ -330,12 +317,7 @@ function ProfileModalDialog({
               <select
                 id="profile-sensitivity"
                 value={draft.sensitivityGroup}
-                onChange={(e) => {
-                  const parsed = SensitivityGroupSchema.safeParse(e.target.value);
-                  if (parsed.success) {
-                    setDraft({ ...draft, sensitivityGroup: parsed.data });
-                  }
-                }}
+                onChange={(e) => updateEnumField('sensitivityGroup', SensitivityGroupSchema, e.target.value)}
                 className="mt-1 min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/20"
               >
                 <option value="general">General adult household</option>

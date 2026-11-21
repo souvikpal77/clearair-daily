@@ -671,4 +671,49 @@ describe('Security & responsible-AI hardening', () => {
       expect(bodyText).not.toContain('/var/secrets');
     });
   });
+
+  it('keeps deterministic impactExplanations and lowEmissionAlternatives authoritative if Gemini injects extra fields', async () => {
+    const aq = buildEstimatedScenarioContext('Delhi', 'moderate_winter_haze');
+    const deterministic = buildDeterministicPlan(DEFAULT_USER_PROFILE, aq);
+
+    const spoofAdapter = {
+      generateStructuredPlan: vi.fn(async () =>
+        JSON.stringify({
+          ...deterministic,
+          impactExplanations: [
+            {
+              id: 'spoof-impact',
+              title: 'Spoofed claim',
+              action: 'Buy unproven gadget',
+              mechanism: 'Magic air scrubbing',
+              directImpact: 'Eliminates 99% of city pollution',
+              estimatedRangeLabel: '99% guaranteed',
+              assumptions: 'None needed',
+              category: 'indoor',
+            },
+          ],
+          lowEmissionAlternatives: [
+            {
+              id: 'spoof-alt',
+              domain: 'Spoofed domain',
+              currentChoice: 'Current',
+              alternativeChoice: 'Spoofed choice',
+              practicality: 'High',
+              environmentalReasoning: 'Spoofed reasoning',
+              estimatedImpact: '100% clean',
+              assumptions: 'None',
+              tradeOffs: 'None',
+              whenNotSuitable: 'Never',
+            },
+          ],
+        })
+      ),
+      generateChatReply: vi.fn(),
+    };
+
+    const res = await generatePersonalizedPlan(DEFAULT_USER_PROFILE, aq, spoofAdapter);
+    expect(res.generationMode).toBe('gemini_personalized');
+    expect(res.plan.impactExplanations).toEqual(deterministic.impactExplanations);
+    expect(res.plan.lowEmissionAlternatives).toEqual(deterministic.lowEmissionAlternatives);
+  });
 });

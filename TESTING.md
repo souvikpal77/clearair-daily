@@ -15,7 +15,7 @@ npm test
 npm run build
 ```
 
-Verified suite baseline: **10 test files, 67 passing tests**.
+Verified suite baseline: **10 test files, 70 passing tests**.
 
 ### Unit Tests (`src/core/__tests__/`)
 - **`aqCategorizer.test.ts`**: Verifies US EPA AQI boundary classifications (`0–50`, `51–100`, `101–150`, `151–200`, `201–300`, `301+`), null/negative safety handling, dominant pollutant logic, and honest non-live scenario labeling.

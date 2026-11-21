@@ -8,10 +8,14 @@ import type {
   SensitivityGroup,
   UserProfile,
 } from '../shared/types.ts';
-import { buildDeterministicAlternatives } from './alternativesEngine.ts';
-import { isElevatedPollutionLevel, US_EPA_AQI_THRESHOLDS } from './aqCategorizer.ts';
+import {
+  isElevatedPollutionLevel,
+  isValidUsAqi,
+  US_EPA_AQI_THRESHOLDS,
+} from './aqCategorizer.ts';
 
-export { buildDeterministicAlternatives };
+const CAR_SOLO_CO2_RANGE_LABEL = `${EMISSION_ASSUMPTIONS.carSoloKgCo2PerKmLow}–${EMISSION_ASSUMPTIONS.carSoloKgCo2PerKmHigh}`;
+const TRANSIT_CO2_RANGE_LABEL = `${EMISSION_ASSUMPTIONS.publicTransitKgCo2PerKmLow}–${EMISSION_ASSUMPTIONS.publicTransitKgCo2PerKmHigh}`;
 
 export const IMPACT_MODEL_BOUNDS = {
   maxOneWayDistanceKm: 150,
@@ -106,7 +110,7 @@ export function calculateTransportImpact(params: {
     soloCarCo2Range: estimate.soloCarCo2Range,
     netCo2SavedRange: estimate.transitNetSavingsRange,
     assumptions:
-      'Assumes 0.16–0.22 kg CO2e/km for solo passenger car travel vs 0.04–0.08 kg CO2e/passenger-km for urban public transit.',
+      `Assumes ${CAR_SOLO_CO2_RANGE_LABEL} kg CO2e/km for solo passenger car travel vs ${TRANSIT_CO2_RANGE_LABEL} kg CO2e/passenger-km for urban public transit.`,
     limitations:
       'Actual emissions difference depends on vehicle fuel/efficiency, local transit grid mix, and trip occupancy.',
   };
@@ -153,12 +157,7 @@ export function calculateActivityImpact(params: {
   mechanism: string;
   limitations: string;
 } {
-  if (
-    params.aqi === null ||
-    !Number.isFinite(params.aqi) ||
-    params.aqi < 0 ||
-    params.aqi > US_EPA_AQI_THRESHOLDS.maxValidAqi
-  ) {
+  if (!isValidUsAqi(params.aqi)) {
     return {
       exposureRiskTier: 'precautionary',
       recommendedAction: 'Prefer moderate-intensity activity until live local readings are confirmed.',
@@ -345,7 +344,7 @@ export function calculateCommunityProjection(
     collectiveEstimatedKmReduced: roundToOne(single.kmReduced * safeHouseholds),
     methodologyNote:
       `Illustrative scenario math assuming ${safeHouseholds} households each replace ${weeklyTripsAvoidedPerHousehold} ` +
-      `round-trips/week of ${effectiveDistanceKm} km solo driving with shared transit (est. 0.16–0.22 vs 0.04–0.08 kg CO2e/km). ` +
+      `round-trips/week of ${effectiveDistanceKm} km solo driving with shared transit (est. ${CAR_SOLO_CO2_RANGE_LABEL} vs ${TRANSIT_CO2_RANGE_LABEL} kg CO2e/km). ` +
       'Represents proportional activity-emission reductions, not a city-wide ambient AQI forecast.',
   };
 }

@@ -32,7 +32,7 @@ Express Server (port 3000, 100kb JSON cap, security headers)
 
 | Layer | Directory | Responsibility |
 |---|---|---|
-| Shared Contracts | `src/shared/` | Strict domain types (`AirQualityData`, `StructuredRecommendation`, `StructuredAssistantReply`), Zod sanitization schemas, emission assumptions, and scenario constants. |
+| Shared Contracts | `src/shared/` | Strict domain types (`AirQualityContext`, `StructuredRecommendation`, `StructuredAssistantReply`), Zod sanitization schemas, emission assumptions, and scenario constants. |
 | Deterministic Core | `src/core/` | US EPA AQI categorization (`aqCategorizer`), external payload bounds validation (`aqNormalizer`), prioritized recommendation engine (`recommendationEngine`), impact calculator (`impactCalculator`), lifestyle alternatives (`alternativesEngine`), indoor air rules (`indoorGuidance`), and daily plan/fallback generator (`dailyPlanGenerator`, `fallbackPlanner`). |
 | Server Services | `src/server/` | Deduplicated & cached Open-Meteo API service (`airQualityService`), timeout-protected & schema-validated `@google/genai` orchestration (`geminiService`), and Express router factory (`createApp`). |
 | Client UI & State | `src/components/`, `src/hooks/`, `src/services/` | Presentational UI components, `useAirQualityPlanner` state reuse & `AbortController` management, typed `/api/*` client, and local persistence. |

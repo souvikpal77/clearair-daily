@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
+import { buildDeterministicAlternatives } from '../core/alternativesEngine.ts';
 import {
   categorizeUsAqi,
   identifyDominantPollutant,
@@ -6,15 +7,14 @@ import {
 import {
   buildActionChecklist,
   buildDeterministicPlan,
+} from '../core/dailyPlanGenerator.ts';
+import {
   buildStructuredFallbackAssistantReply,
   formatStructuredAssistantReply,
   isDirectAqiValueQuestion,
   isMedicalScopeQuestion,
 } from '../core/fallbackPlanner.ts';
-import {
-  buildDeterministicAlternatives,
-  buildDeterministicImpactChains,
-} from '../core/impactCalculator.ts';
+import { buildDeterministicImpactChains } from '../core/impactCalculator.ts';
 import { buildDeterministicRecommendations } from '../core/recommendationEngine.ts';
 import { RESPONSIBLE_AI_DISCLAIMER } from '../shared/constants.ts';
 import {
@@ -39,6 +39,7 @@ export interface GeminiClientAdapter {
 }
 
 export const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
+const GEMINI_MODEL_ID = 'gemini-4-hydrogen';
 
 let cachedClient: { apiKey: string; ai: GoogleGenAI } | null = null;
 
@@ -76,6 +77,26 @@ function normalizeAuthoritativeAirQuality(airQuality: AirQualityContext): AirQua
   };
 }
 
+function serializeAirQualityContextXml(airQuality: AirQualityContext): string {
+  return [
+    '<air_quality_context>',
+    serializeUntrustedJson({
+      cityResolved: airQuality.cityResolved,
+      aqi: airQuality.aqi,
+      category: airQuality.category.label,
+      dominantPollutant: airQuality.dominantPollutant,
+      dataSource: airQuality.dataSource,
+      observedAt: airQuality.observedAt,
+      pollutants: airQuality.pollutants.map((p) => ({
+        code: p.code,
+        value: p.value,
+        unit: p.unit,
+      })),
+    }),
+    '</air_quality_context>',
+  ].join('\n');
+}
+
 const PLAN_SYSTEM_INSTRUCTION = `You are ClearAir Daily, a calm, practical, scientifically responsible urban air quality decision assistant.
 Translate verified air context and household inputs into concise natural-language personalization for daily routines, indoor air actions, and cautions.
 
@@ -95,11 +116,36 @@ Strict rules:
 5. If asked for medical diagnoses, treatments, or prescriptions, decline clinical advice and suggest consulting a qualified healthcare professional or local public-health advisories.
 6. Return plain text only (no HTML tags, scripts, or executable links) inside strictly valid JSON matching { "answer": string, "recommendations": string[], "impactExplanation": string, "cautions": string[] }.`;
 
+const RATE_LIMIT_TOKENS = ['429', 'RESOURCE_EXHAUSTED'] as const;
+const TRANSIENT_UPSTREAM_TOKENS = [
+  '500',
+  '502',
+  '503',
+  '504',
+  'INTERNAL',
+  'UNAVAILABLE',
+  'ECONNRESET',
+  'fetch failed',
+] as const;
+
+const UNAVAILABLE_ERROR_CODES = new Set([
+  '429_RESOURCE_EXHAUSTED',
+  '404_NOT_FOUND',
+  'PERMISSION_DENIED',
+  'UPSTREAM_4XX',
+  'GEMINI_TIMEOUT',
+  'UPSTREAM_5XX',
+]);
+
+function includesAnyToken(text: string, tokens: readonly string[]): boolean {
+  return tokens.some((token) => text.includes(token));
+}
+
 function classifySafeErrorCode(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   if (error instanceof Error && error.name === 'AbortError') return 'REQUEST_ABORTED';
   if (msg.includes('timed out')) return 'GEMINI_TIMEOUT';
-  if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) return '429_RESOURCE_EXHAUSTED';
+  if (includesAnyToken(msg, RATE_LIMIT_TOKENS)) return '429_RESOURCE_EXHAUSTED';
   if (msg.includes('404') || msg.includes('NOT_FOUND')) return '404_NOT_FOUND';
   if (msg.includes('PERMISSION_DENIED') || msg.includes('403')) return 'PERMISSION_DENIED';
   if (msg.includes('400') || msg.includes('INVALID_ARGUMENT') || msg.includes('API_KEY_INVALID')) {
@@ -107,18 +153,7 @@ function classifySafeErrorCode(error: unknown): string {
   }
   if (msg.includes('schema validation')) return 'SCHEMA_VALIDATION_FAILED';
   if (msg.includes('JSON')) return 'MALFORMED_JSON';
-  if (
-    msg.includes('500') ||
-    msg.includes('502') ||
-    msg.includes('503') ||
-    msg.includes('504') ||
-    msg.includes('INTERNAL') ||
-    msg.includes('UNAVAILABLE') ||
-    msg.includes('ECONNRESET') ||
-    msg.includes('fetch failed')
-  ) {
-    return 'UPSTREAM_5XX';
-  }
+  if (includesAnyToken(msg, TRANSIENT_UPSTREAM_TOKENS)) return 'UPSTREAM_5XX';
   return 'GEMINI_FALLBACK';
 }
 
@@ -192,7 +227,7 @@ function createLiveGeminiAdapter(): GeminiClientAdapter | null {
   return {
     async generateStructuredPlan(prompt: string, signal?: AbortSignal): Promise<string | undefined> {
       const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
+        model: GEMINI_MODEL_ID,
         contents: prompt,
         config: {
           abortSignal: signal,
@@ -255,7 +290,7 @@ function createLiveGeminiAdapter(): GeminiClientAdapter | null {
       signal?: AbortSignal
     ): Promise<string | undefined> {
       const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
+        model: GEMINI_MODEL_ID,
         contents,
         config: {
           abortSignal: signal,
@@ -287,18 +322,23 @@ function isRetryableError(err: unknown): boolean {
   if (message.includes('timed out')) {
     return false;
   }
-  return (
-    message.includes('429') ||
-    message.includes('RESOURCE_EXHAUSTED') ||
-    message.includes('500') ||
-    message.includes('502') ||
-    message.includes('503') ||
-    message.includes('504') ||
-    message.includes('INTERNAL') ||
-    message.includes('UNAVAILABLE') ||
-    message.includes('ECONNRESET') ||
-    message.includes('fetch failed')
-  );
+  return includesAnyToken(message, RATE_LIMIT_TOKENS) || includesAnyToken(message, TRANSIENT_UPSTREAM_TOKENS);
+}
+
+function recordFallbackError(
+  operation: string,
+  error: unknown,
+  startedAt: number,
+  signal?: AbortSignal
+): string {
+  if (signal?.aborted) {
+    throw error instanceof Error && error.name === 'AbortError'
+      ? error
+      : createAbortError();
+  }
+  const elapsedMs = Date.now() - startedAt;
+  logSafeDiagnostic(operation, error, elapsedMs);
+  return classifySafeErrorCode(error);
 }
 
 async function withBackoff<T>(
@@ -361,21 +401,7 @@ export async function generatePersonalizedPlan(
     '<user_profile>',
     serializeUntrustedJson(profile),
     '</user_profile>',
-    '<air_quality_context>',
-    serializeUntrustedJson({
-      cityResolved: airQuality.cityResolved,
-      aqi: airQuality.aqi,
-      category: airQuality.category.label,
-      dominantPollutant: airQuality.dominantPollutant,
-      dataSource: airQuality.dataSource,
-      observedAt: airQuality.observedAt,
-      pollutants: airQuality.pollutants.map((p) => ({
-        code: p.code,
-        value: p.value,
-        unit: p.unit,
-      })),
-    }),
-    '</air_quality_context>',
+    serializeAirQualityContextXml(airQuality),
     '<deterministic_baselines>',
     serializeUntrustedJson({
       prioritizedRecommendations: deterministicRecommendations.map((r) => ({
@@ -413,12 +439,13 @@ export async function generatePersonalizedPlan(
     }
 
     const parsedJson: unknown = JSON.parse(rawText);
+    // Keep deterministic alternatives and impact chains authoritative regardless of extra model keys
     const mergedPayload =
       parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)
         ? {
+            ...parsedJson,
             lowEmissionAlternatives: deterministicAlternatives,
             impactExplanations: deterministicImpacts,
-            ...parsedJson,
           }
         : parsedJson;
 
@@ -442,29 +469,14 @@ export async function generatePersonalizedPlan(
       disclaimer: RESPONSIBLE_AI_DISCLAIMER,
     };
   } catch (error) {
-    if (options.signal?.aborted) {
-      throw error instanceof Error && error.name === 'AbortError'
-        ? error
-        : createAbortError();
-    }
-
-    const elapsedMs = Date.now() - startedAt;
-    logSafeDiagnostic('generatePersonalizedPlan', error, elapsedMs);
-    const errorCode = classifySafeErrorCode(error);
-    const isQuotaOrUnavailable =
-      errorCode === '429_RESOURCE_EXHAUSTED' ||
-      errorCode === '404_NOT_FOUND' ||
-      errorCode === 'PERMISSION_DENIED' ||
-      errorCode === 'UPSTREAM_4XX' ||
-      errorCode === 'GEMINI_TIMEOUT' ||
-      errorCode === 'UPSTREAM_5XX';
+    const errorCode = recordFallbackError('generatePersonalizedPlan', error, startedAt, options.signal);
 
     return {
       plan: deterministicFallback,
       recommendations: deterministicRecommendations,
       checklist,
       generationMode: 'deterministic_fallback',
-      fallbackNotice: isQuotaOrUnavailable
+      fallbackNotice: UNAVAILABLE_ERROR_CODES.has(errorCode)
         ? 'AI personalization is temporarily rate-limited or unavailable; showing verified deterministic guidance instead.'
         : 'AI output could not be verified; showing verified deterministic guidance instead.',
       generatedAt: new Date().toISOString(),
@@ -527,21 +539,7 @@ export async function askGroundedAssistant(
   const deterministicAlternatives = buildDeterministicAlternatives(profile, airQuality);
 
   const contents = [
-    '<air_quality_context>',
-    serializeUntrustedJson({
-      cityResolved: airQuality.cityResolved,
-      aqi: airQuality.aqi,
-      category: airQuality.category.label,
-      dominantPollutant: airQuality.dominantPollutant,
-      dataSource: airQuality.dataSource,
-      observedAt: airQuality.observedAt,
-      pollutants: airQuality.pollutants.map((p) => ({
-        code: p.code,
-        value: p.value,
-        unit: p.unit,
-      })),
-    }),
-    '</air_quality_context>',
+    serializeAirQualityContextXml(airQuality),
     '<user_profile>',
     serializeUntrustedJson(profile),
     '</user_profile>',
@@ -605,14 +603,7 @@ export async function askGroundedAssistant(
       disclaimer: RESPONSIBLE_AI_DISCLAIMER,
     };
   } catch (error) {
-    if (options.signal?.aborted) {
-      throw error instanceof Error && error.name === 'AbortError'
-        ? error
-        : createAbortError();
-    }
-
-    const elapsedMs = Date.now() - startedAt;
-    logSafeDiagnostic('askGroundedAssistant', error, elapsedMs);
+    recordFallbackError('askGroundedAssistant', error, startedAt, options.signal);
     return {
       reply: formatStructuredAssistantReply(deterministicStructured),
       structuredReply: deterministicStructured,

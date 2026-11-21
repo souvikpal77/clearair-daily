@@ -1,3 +1,4 @@
+import { EMISSION_ASSUMPTIONS } from '../shared/constants.ts';
 import type {
   AirQualityContext,
   AlternativeComparison,
@@ -61,7 +62,7 @@ export function buildDeterministicAlternatives(
         'Consolidating trips onto shared transit or multi-occupancy vehicles cuts per-person fuel combustion and reduces winter traffic idling.',
       estimatedImpact: `Est. ${estimate.kmReduced} solo km avoided/week (~${estimate.transitNetSavingsRange[0]}–${estimate.transitNetSavingsRange[1]} kg CO2e saved/week)`,
       assumptions:
-        'Calculated for 2 round-trips/week using average urban passenger car (0.16–0.22 kg CO2e/km) vs urban transit (0.04–0.08 kg CO2e/km).',
+        `Calculated for 2 round-trips/week using average urban passenger car (${EMISSION_ASSUMPTIONS.carSoloKgCo2PerKmLow}–${EMISSION_ASSUMPTIONS.carSoloKgCo2PerKmHigh} kg CO2e/km) vs urban transit (${EMISSION_ASSUMPTIONS.publicTransitKgCo2PerKmLow}–${EMISSION_ASSUMPTIONS.publicTransitKgCo2PerKmHigh} kg CO2e/km).`,
       tradeOffs:
         'May add 10–25 minutes per trip depending on transfers and winter schedules.',
       whenNotSuitable:

@@ -83,6 +83,37 @@ function resolveConfiguredAppHost(): string | null {
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+async function runAbortableJsonHandler<T>(
+  res: express.Response,
+  execute: (signal: AbortSignal) => Promise<T>,
+  fallbackErrorMessage: string
+): Promise<void> {
+  const requestAbort = new AbortController();
+  const onClose = () => {
+    if (!res.writableFinished) {
+      requestAbort.abort();
+    }
+  };
+  res.on('close', onClose);
+
+  try {
+    const result = await execute(requestAbort.signal);
+    if (!res.writableFinished) {
+      res.json(result);
+    }
+  } catch {
+    if (!res.writableFinished && !requestAbort.signal.aborted) {
+      res.status(500).json({ error: fallbackErrorMessage });
+    }
+  } finally {
+    res.off('close', onClose);
+  }
+}
+
 export function createApiApp(deps: AppDependencies = {}) {
   const app = express();
   const configuredAppHost = resolveConfiguredAppHost();
@@ -201,7 +232,7 @@ export function createApiApp(deps: AppDependencies = {}) {
   });
 
   app.post('/api/plan/generate', aiLimiter, async (req, res) => {
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    if (!isPlainObject(req.body)) {
       res.status(400).json({ error: 'Request body is required.' });
       return;
     }
@@ -214,37 +245,21 @@ export function createApiApp(deps: AppDependencies = {}) {
       return;
     }
 
-    const requestAbort = new AbortController();
-    const onClose = () => {
-      if (!res.writableFinished) {
-        requestAbort.abort();
-      }
-    };
-    res.on('close', onClose);
-
-    try {
-      const result = await generatePersonalizedPlan(
-        parsed.data.profile,
-        parsed.data.airQuality,
-        deps.geminiAdapter,
-        { signal: requestAbort.signal }
-      );
-      if (!res.writableFinished) {
-        res.json(result);
-      }
-    } catch {
-      if (!res.writableFinished && !requestAbort.signal.aborted) {
-        res.status(500).json({
-          error: 'Unable to generate daily plan at this moment.',
-        });
-      }
-    } finally {
-      res.off('close', onClose);
-    }
+    await runAbortableJsonHandler(
+      res,
+      (signal) =>
+        generatePersonalizedPlan(
+          parsed.data.profile,
+          parsed.data.airQuality,
+          deps.geminiAdapter,
+          { signal }
+        ),
+      'Unable to generate daily plan at this moment.'
+    );
   });
 
   app.post('/api/assistant/chat', aiLimiter, async (req, res) => {
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    if (!isPlainObject(req.body)) {
       res.status(400).json({ error: 'Request body is required.' });
       return;
     }
@@ -257,30 +272,11 @@ export function createApiApp(deps: AppDependencies = {}) {
       return;
     }
 
-    const requestAbort = new AbortController();
-    const onClose = () => {
-      if (!res.writableFinished) {
-        requestAbort.abort();
-      }
-    };
-    res.on('close', onClose);
-
-    try {
-      const result = await askGroundedAssistant(parsed.data, deps.geminiAdapter, {
-        signal: requestAbort.signal,
-      });
-      if (!res.writableFinished) {
-        res.json(result);
-      }
-    } catch {
-      if (!res.writableFinished && !requestAbort.signal.aborted) {
-        res.status(500).json({
-          error: 'Assistant is temporarily unavailable. Please retry shortly.',
-        });
-      }
-    } finally {
-      res.off('close', onClose);
-    }
+    await runAbortableJsonHandler(
+      res,
+      (signal) => askGroundedAssistant(parsed.data, deps.geminiAdapter, { signal }),
+      'Assistant is temporarily unavailable. Please retry shortly.'
+    );
   });
 
   app.use('/api', (_req, res) => {

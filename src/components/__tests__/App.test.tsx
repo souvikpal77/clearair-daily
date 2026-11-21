@@ -96,10 +96,26 @@ describe('ClearAir Daily UI flows', () => {
     await waitFor(() => expect(checkBtn).toBeEnabled());
 
     const cityInput = screen.getByLabelText(/City or urban area/i);
-    fireEvent.change(cityInput, { target: { value: 'A' } });
+    fireEvent.change(cityInput, { target: { value: '\u0000A' } });
     fireEvent.click(checkBtn);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/2 and 80 characters/i);
+  });
+
+  it('ignores stale localStorage checklist IDs when displaying completed action count', async () => {
+    window.localStorage.setItem(
+      'clearair_daily_checklist_v1',
+      JSON.stringify({
+        date: new Date().toISOString().slice(0, 10),
+        ids: ['stale-nonexistent-id-1', 'stale-nonexistent-id-2'],
+      })
+    );
+    installMockFetch();
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/0 of 6 completed/i)).toBeInTheDocument();
+    });
   });
 
   it('tracks daily checklist toggles and updates progress count', async () => {

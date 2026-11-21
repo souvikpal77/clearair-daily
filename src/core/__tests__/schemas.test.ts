@@ -118,4 +118,48 @@ describe('Security schema hardening', () => {
       }).success
     ).toBe(false);
   });
+
+  it('validates API response schemas and rejects malformed or unsafe response payloads', async () => {
+    const {
+      AssistantChatResponseSchema,
+      GeneratedAirPlanResponseSchema,
+    } = await import('../../shared/schemas');
+    const aq = buildEstimatedScenarioContext('Delhi', 'moderate_winter_haze');
+    const validPlan = buildDeterministicPlan(DEFAULT_USER_PROFILE, aq);
+
+    expect(
+      GeneratedAirPlanResponseSchema.safeParse({
+        plan: validPlan,
+        checklist: [],
+        generationMode: 'deterministic_fallback',
+        fallbackNotice: null,
+        generatedAt: '2026-11-18T12:00:00.000Z',
+        disclaimer: 'Informational guidance only.',
+      }).success
+    ).toBe(true);
+
+    expect(
+      AssistantChatResponseSchema.safeParse({
+        reply: 'Keep windows closed.',
+        structuredReply: {
+          answer: 'Unsafe <script>alert(1)</script> guidance.',
+          recommendations: ['Stay indoors.'],
+          impactExplanation: 'Reduces PM2.5.',
+          cautions: ['Informational only.'],
+        },
+        mode: 'deterministic_fallback',
+        groundedContextSummary: 'Delhi · US AQI 128',
+        disclaimer: 'Informational guidance only.',
+      }).success
+    ).toBe(false);
+
+    expect(
+      AssistantChatResponseSchema.safeParse({
+        reply: ' ',
+        mode: 'unknown_mode',
+        groundedContextSummary: 'Delhi',
+        disclaimer: 'Informational guidance only.',
+      }).success
+    ).toBe(false);
+  });
 });

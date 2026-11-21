@@ -5,8 +5,7 @@ import type {
   DataSourceKind,
   UserProfile,
 } from '../shared/types.ts';
-
-export type FormattedFreshness = DataFreshness;
+import { isUnhealthyOrWorseLevel } from './aqCategorizer.ts';
 
 export function formatDataFreshness(
   observedAt: string | null,
@@ -90,8 +89,7 @@ export function buildTodaysAirSignals(
   profile: UserProfile
 ): AirSignalItem[] {
   const level: AqSeverityLevel = airQuality.category.level;
-  const isPoorOrWorse =
-    level === 'unhealthy' || level === 'very_unhealthy' || level === 'hazardous';
+  const isPoorOrWorse = isUnhealthyOrWorseLevel(level);
   const isSensitiveOrModerate = level === 'sensitive' || level === 'moderate';
 
   const outdoorSignal: AirSignalItem = isPoorOrWorse

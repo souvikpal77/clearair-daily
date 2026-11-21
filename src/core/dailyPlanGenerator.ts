@@ -10,10 +10,8 @@ import {
   isUnhealthyOrWorseLevel,
   US_EPA_AQI_THRESHOLDS,
 } from './aqCategorizer.ts';
-import {
-  buildDeterministicAlternatives,
-  buildDeterministicImpactChains,
-} from './impactCalculator.ts';
+import { buildDeterministicAlternatives } from './alternativesEngine.ts';
+import { buildDeterministicImpactChains } from './impactCalculator.ts';
 import { buildDeterministicIndoorGuidance } from './indoorGuidance.ts';
 import { buildDeterministicRecommendations } from './recommendationEngine.ts';
 

@@ -1,3 +1,4 @@
+import { MAX_VALID_AQI } from '../shared/constants.ts';
 import type {
   AirQualityContext,
   AqCategoryInfo,
@@ -11,7 +12,7 @@ import type {
  * Values > 500 remain classified as Hazardous up to the physical upper validation cap (1000).
  */
 export const US_EPA_AQI_THRESHOLDS = {
-  maxValidAqi: 1000,
+  maxValidAqi: MAX_VALID_AQI,
   goodMax: 50,
   moderateMax: 100,
   sensitiveMax: 150,
@@ -48,13 +49,17 @@ export function isVeryUnhealthyOrWorseLevel(level: AqCategoryInfo['level']): boo
   return level === 'very_unhealthy' || level === 'hazardous';
 }
 
+export function isValidUsAqi(aqi: number | null): aqi is number {
+  return (
+    aqi !== null &&
+    Number.isFinite(aqi) &&
+    aqi >= 0 &&
+    aqi <= US_EPA_AQI_THRESHOLDS.maxValidAqi
+  );
+}
+
 export function categorizeUsAqi(aqi: number | null): AqCategoryInfo {
-  if (
-    aqi === null ||
-    !Number.isFinite(aqi) ||
-    aqi < 0 ||
-    aqi > US_EPA_AQI_THRESHOLDS.maxValidAqi
-  ) {
+  if (!isValidUsAqi(aqi)) {
     return {
       level: 'moderate',
       label: 'Unavailable (Precautionary)',

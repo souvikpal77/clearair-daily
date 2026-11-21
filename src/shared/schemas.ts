@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_VALID_AQI } from './constants.ts';
 
 const sanitizePlainText = (value: string): string =>
   value
@@ -114,7 +115,7 @@ export const AirQualityContextSchema = z.object({
   countryOrRegion: SafeShortTextSchema(1, 100),
   latitude: z.number().finite().min(-90).max(90).nullable(),
   longitude: z.number().finite().min(-180).max(180).nullable(),
-  aqi: z.number().finite().min(0).max(1000).nullable(),
+  aqi: z.number().finite().min(0).max(MAX_VALID_AQI).nullable(),
   category: AqCategoryInfoSchema,
   externalCategory: z
     .object({
@@ -216,3 +217,42 @@ export const AssistantChatRequestSchema = z
     planSummary: SafeShortTextSchema(5, 500).optional(),
   })
   .strict();
+
+export const ActionChecklistItemSchema = z.object({
+  id: SafeShortTextSchema(1, 64),
+  label: SafeShortTextSchema(2, 240),
+  category: z.enum(['exposure', 'emissions', 'indoor']),
+  timeWindow: SafeShortTextSchema(1, 40),
+});
+
+export const StructuredRecommendationSchema = z.object({
+  id: SafeShortTextSchema(1, 64),
+  category: z.enum(['exposure', 'transport', 'indoor', 'energy', 'protection']),
+  priority: z.enum(['critical', 'high', 'medium', 'low']),
+  title: SafeShortTextSchema(2, 120),
+  action: SafeShortTextSchema(2, 320),
+  reason: SafeShortTextSchema(2, 320),
+  mechanism: SafeShortTextSchema(2, 320),
+  impact: SafeShortTextSchema(2, 240),
+  limitations: SafeShortTextSchema(2, 320),
+  sourceType: z.enum(['deterministic_rule', 'ai_personalized']),
+  targetSection: z.enum(['daily-plan', 'indoor-air', 'alternatives']),
+});
+
+export const GeneratedAirPlanResponseSchema = z.object({
+  plan: AiPlanPayloadSchema,
+  recommendations: z.array(StructuredRecommendationSchema).optional(),
+  checklist: z.array(ActionChecklistItemSchema).max(20),
+  generationMode: z.enum(['gemini_personalized', 'deterministic_fallback']),
+  fallbackNotice: SafeShortTextSchema(1, 300).nullable(),
+  generatedAt: z.string().min(1).max(64),
+  disclaimer: SafeShortTextSchema(5, 400),
+});
+
+export const AssistantChatResponseSchema = z.object({
+  reply: SafeShortTextSchema(2, 2500),
+  structuredReply: StructuredAssistantReplySchema.optional(),
+  mode: z.enum(['gemini_grounded', 'deterministic_fallback']),
+  groundedContextSummary: SafeShortTextSchema(2, 240),
+  disclaimer: SafeShortTextSchema(5, 400),
+});

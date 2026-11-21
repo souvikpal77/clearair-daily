@@ -50,10 +50,11 @@ export const QUICK_ASSISTANT_PROMPTS: readonly string[] = [
   'What are lower-emission alternatives to my routine?',
 ];
 
+export const MAX_VALID_AQI = 1000;
+
 export const EMISSION_ASSUMPTIONS = {
   carSoloKgCo2PerKmLow: 0.16,
   carSoloKgCo2PerKmHigh: 0.22,
   publicTransitKgCo2PerKmLow: 0.04,
   publicTransitKgCo2PerKmHigh: 0.08,
-  carpoolOccupancy: 2.5,
 } as const;

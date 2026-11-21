@@ -3,6 +3,7 @@ import type {
   StructuredAssistantReply,
   UserProfile,
 } from '../shared/types.ts';
+import { US_EPA_AQI_THRESHOLDS } from './aqCategorizer.ts';
 import {
   buildActionChecklist,
   buildDeterministicPlan,
@@ -111,7 +112,7 @@ export function buildStructuredFallbackAssistantReply(
     q.includes('hepa') ||
     q.includes('filter')
   ) {
-    const highOutdoor = airQuality.aqi === null || airQuality.aqi > 100;
+    const highOutdoor = airQuality.aqi === null || airQuality.aqi > US_EPA_AQI_THRESHOLDS.moderateMax;
     return {
       answer: `For your household of ${profile.householdSize} (${profile.cookingFuel.replace('_', ' ')}, ${profile.hasHepaFilter ? 'HEPA purifier available' : 'no standalone HEPA purifier'}) in ${airQuality.cityResolved} (${aqiText}):`,
       recommendations: [

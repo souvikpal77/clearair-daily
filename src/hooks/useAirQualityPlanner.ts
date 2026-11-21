@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildEstimatedScenarioContext } from '../core/aqCategorizer.ts';
-import { buildActionChecklist, buildDeterministicPlan } from '../core/fallbackPlanner.ts';
+import { buildActionChecklist, buildDeterministicPlan } from '../core/dailyPlanGenerator.ts';
 import { buildDeterministicRecommendations } from '../core/recommendationEngine.ts';
 import {
   fetchAirQuality,
@@ -61,6 +61,15 @@ function loadStoredCheckedIds(): string[] {
   }
 }
 
+function writeStorageJson(key: string, value: unknown): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage quota or private-mode errors gracefully
+  }
+}
+
 export function useAirQualityPlanner() {
   const [initialBootstrap] = useState(() => {
     const initialProfile = loadStoredProfile();
@@ -110,6 +119,7 @@ export function useAirQualityPlanner() {
         checklist: buildActionChecklist(nextProfile, resolvedAq),
       }));
 
+      setPlanError(null);
       setIsGeneratingPlan(true);
       try {
         const generated = await requestPersonalizedPlan(nextProfile, resolvedAq, signal);
@@ -213,11 +223,7 @@ export function useAirQualityPlanner() {
       const sameCity =
         nextProfile.city.trim().toLowerCase() === profile.city.trim().toLowerCase();
       setProfile(nextProfile);
-      try {
-        window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile));
-      } catch {
-        // Ignore storage quota errors gracefully
-      }
+      writeStorageJson(PROFILE_STORAGE_KEY, nextProfile);
       if (sameCity && !isLoadingAq && !aqError) {
         triggerRefresh(nextProfile, scenarioId, { reuseAirQuality: airQuality });
       } else {
@@ -242,11 +248,7 @@ export function useAirQualityPlanner() {
       const updated = { ...profile, city: parsedCity.data };
       setProfile(updated);
       setScenarioId('live');
-      try {
-        window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // Ignore storage errors
-      }
+      writeStorageJson(PROFILE_STORAGE_KEY, updated);
       triggerRefresh(updated, 'live');
     },
     [profile, triggerRefresh]
@@ -259,14 +261,7 @@ export function useAirQualityPlanner() {
   const toggleChecklistItem = useCallback((id: string) => {
     setCheckedActionIds((prev) => {
       const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-      try {
-        window.localStorage.setItem(
-          CHECKLIST_STORAGE_KEY,
-          JSON.stringify({ date: getTodayDateKey(), ids: next })
-        );
-      } catch {
-        // Ignore storage errors
-      }
+      writeStorageJson(CHECKLIST_STORAGE_KEY, { date: getTodayDateKey(), ids: next });
       return next;
     });
   }, []);

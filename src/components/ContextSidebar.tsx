@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { formatDataFreshness } from '../core/formatters.ts';
 import { PLANNING_SCENARIOS } from '../shared/constants.ts';
-import { PlanningScenarioIdSchema } from '../shared/schemas.ts';
+import { PlanningScenarioIdSchema, SafeShortTextSchema } from '../shared/schemas.ts';
 import type {
   AirQualityContext,
   PlanningScenarioId,
@@ -71,17 +71,18 @@ export function ContextSidebar({
   if (profile.city !== syncedCity) {
     setSyncedCity(profile.city);
     setCityInput(profile.city);
+    setCityError(null);
   }
 
   const handleCitySubmit = (e: FormEvent) => {
     e.preventDefault();
-    const trimmed = cityInput.trim();
-    if (trimmed.length < 2 || trimmed.length > 80) {
+    const parsedCity = SafeShortTextSchema(2, 80).safeParse(cityInput);
+    if (!parsedCity.success) {
       setCityError('Enter a city name between 2 and 80 characters.');
       return;
     }
     setCityError(null);
-    onUpdateCity(trimmed);
+    onUpdateCity(parsedCity.data);
   };
 
   const progressPct =

@@ -223,24 +223,3 @@ export interface AssistantChatResponse {
   groundedContextSummary: string;
   disclaimer: string;
 }
-
-export interface AssistantContext {
-  profile: UserProfile;
-  airQuality: AirQualityContext;
-  recommendations: readonly StructuredRecommendation[];
-  dailyPlan: readonly PlanTimeSlot[];
-  alternatives: readonly AlternativeComparison[];
-  planSummary?: string;
-}
-
-// Semantic domain aliases aligned with core domain architecture
-export type AirQualityData = AirQualityContext;
-export type PollutantData = PollutantReading;
-export type AirQualityCategory = AqCategoryInfo;
-export type HouseholdProfile = UserProfile;
-export type DailyActivity = PlanTimeSlot;
-export type Recommendation = StructuredRecommendation;
-export type ImpactExplanation = ImpactChain;
-export type Alternative = AlternativeComparison;
-export type DailyPlan = AiPlanPayload;
-export type DataSource = DataSourceKind;

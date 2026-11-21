@@ -1,3 +1,9 @@
+import type { z } from 'zod';
+import {
+  AirQualityContextSchema,
+  AssistantChatResponseSchema,
+  GeneratedAirPlanResponseSchema,
+} from '../shared/schemas.ts';
 import type {
   AirQualityContext,
   AssistantChatResponse,
@@ -16,8 +22,11 @@ export class ApiClientError extends Error {
   }
 }
 
-async function parseJsonOrThrow<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => null);
+async function parseValidatedJson<T>(
+  response: Response,
+  schema: z.ZodType<T>
+): Promise<T> {
+  const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const serverMessage =
       payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
@@ -25,7 +34,15 @@ async function parseJsonOrThrow<T>(response: Response): Promise<T> {
         : `Request failed with status ${response.status}`;
     throw new ApiClientError(serverMessage, response.status);
   }
-  return payload as T;
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new ApiClientError(
+      'Received an unexpected response format from the server.',
+      response.status
+    );
+  }
+  return parsed.data;
 }
 
 export async function fetchAirQuality(
@@ -44,7 +61,7 @@ export async function fetchAirQuality(
     signal,
     headers: { Accept: 'application/json' },
   });
-  return parseJsonOrThrow<AirQualityContext>(response);
+  return parseValidatedJson(response, AirQualityContextSchema);
 }
 
 export async function requestPersonalizedPlan(
@@ -61,7 +78,7 @@ export async function requestPersonalizedPlan(
     },
     body: JSON.stringify({ profile, airQuality }),
   });
-  return parseJsonOrThrow<GeneratedAirPlanResponse>(response);
+  return parseValidatedJson(response, GeneratedAirPlanResponseSchema);
 }
 
 export async function sendAssistantQuestion(
@@ -83,5 +100,5 @@ export async function sendAssistantQuestion(
     },
     body: JSON.stringify(params),
   });
-  return parseJsonOrThrow<AssistantChatResponse>(response);
+  return parseValidatedJson(response, AssistantChatResponseSchema);
 }

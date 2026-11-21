@@ -61,6 +61,13 @@ export function DailyPlanSection({
   onRetry,
 }: DailyPlanSectionProps) {
   const { plan, checklist, generationMode, fallbackNotice } = planResponse;
+  const formattedGeneratedTime = new Date(planResponse.generatedAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const completedChecklistCount = checklist.filter((item) =>
+    checkedActionIds.includes(item.id)
+  ).length;
 
   return (
     <section
@@ -71,8 +78,8 @@ export function DailyPlanSection({
       <SectionHeader
         kicker={
           generationMode === 'gemini_personalized'
-            ? `AI-Personalized Schedule · Updated ${new Date(planResponse.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-            : `Verified Schedule · Updated ${new Date(planResponse.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            ? `AI-Personalized Schedule · Updated ${formattedGeneratedTime}`
+            : `Verified Schedule · Updated ${formattedGeneratedTime}`
         }
         title="Personalized Daily Air Plan"
         titleId="daily-plan-heading"
@@ -191,7 +198,7 @@ export function DailyPlanSection({
             </p>
           </div>
           <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800 font-mono-tabular">
-            {checkedActionIds.length} of {checklist.length} completed
+            {completedChecklistCount} of {checklist.length} completed
           </span>
         </div>
 

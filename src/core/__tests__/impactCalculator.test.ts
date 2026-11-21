@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_USER_PROFILE } from '../../shared/constants';
+import { buildDeterministicAlternatives } from '../alternativesEngine';
 import { buildEstimatedScenarioContext } from '../aqCategorizer';
 import {
-  buildDeterministicAlternatives,
   buildDeterministicImpactChains,
   calculateActivityImpact,
   calculateCommunityProjection,
