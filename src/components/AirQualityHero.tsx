@@ -70,6 +70,10 @@ export function AirQualityHero({
   const isEstimated = airQuality.dataSource === 'scenario_estimate';
   const freshness = formatDataFreshness(airQuality.observedAt, airQuality.dataSource);
   const signals = buildTodaysAirSignals(airQuality, profile);
+  const countryOrRegion = airQuality.countryOrRegion.trim();
+  const showCountryOrRegion =
+    Boolean(countryOrRegion) &&
+    countryOrRegion.toLowerCase() !== freshness.label.trim().toLowerCase();
 
   return (
     <section
@@ -95,15 +99,19 @@ export function AirQualityHero({
 
       <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
         {/* Left: Where am I? + Compact Greeting + Signature "Today's Air Signal" */}
-        <div className="lg:col-span-5 flex flex-col justify-between gap-4">
+        <div className="lg:col-span-5 flex flex-col gap-5">
           <div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-600">
               <span className="inline-flex items-center gap-1 font-semibold text-teal-800">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>{airQuality.cityResolved}</span>
               </span>
-              <span aria-hidden="true">·</span>
-              <span>{airQuality.countryOrRegion}</span>
+              {showCountryOrRegion && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{countryOrRegion}</span>
+                </>
+              )}
               <span aria-hidden="true">·</span>
               <span className="inline-flex items-center gap-1 text-slate-700">
                 <Clock className="h-3 w-3 text-slate-400" aria-hidden="true" />
@@ -111,23 +119,26 @@ export function AirQualityHero({
               </span>
             </div>
 
-            <p className="mt-2.5 text-xs font-semibold tracking-wide text-slate-500">
+            <p className="mt-3 text-xs font-semibold tracking-wide text-slate-500">
               {greeting}
             </p>
             <h1
               id="hero-greeting-heading"
-              className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px] sm:leading-[1.18]"
+              className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-[30px] sm:leading-[1.15]"
             >
               Let’s plan a cleaner day in {airQuality.cityResolved}.
             </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Daily outdoor, mask, and ventilation cues shaped around your routine and local air.
+            </p>
           </div>
 
           {/* Signature Branded Component: TODAY'S AIR SIGNAL */}
           <div
             aria-label="Today's Air Signal"
-            className="rounded-xl border border-[var(--border-subtle)] bg-white/90 p-4 shadow-xs"
+            className="rounded-xl border border-[var(--border-subtle)] bg-white/95 p-4 sm:p-5 shadow-xs"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <p className="text-[11px] font-bold tracking-wider text-teal-900 uppercase">
                 Today’s Air Signal
               </p>
@@ -136,14 +147,14 @@ export function AirQualityHero({
               </span>
             </div>
 
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3.5 space-y-2.5">
               {signals.map((sig) => {
                 const st = SIGNAL_STYLES[sig.statusLevel];
                 const Icon = st.icon;
                 return (
                   <li
                     key={sig.id}
-                    className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs ${st.rowBg}`}
+                    className={`flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-xs ${st.rowBg}`}
                   >
                     <span
                       aria-hidden="true"
@@ -160,7 +171,7 @@ export function AirQualityHero({
             </ul>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-1 text-xs text-slate-500">
             <button
               type="button"
               onClick={onRetry}
